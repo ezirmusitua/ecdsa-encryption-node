@@ -35,7 +35,7 @@ function aesEncrypt(key, iv, plainText) {
 
 function aesDecrypt(key, iv, cipherText) {
   const ciphered = cipherText.slice(0, -AES_GCM_TAG_LEN);
-  const tag = cipherText.slice(AES_GCM_TAG_LEN);
+  const tag = cipherText.slice(-AES_GCM_TAG_LEN);
   const decipher = crypto.createDecipheriv(AES_ALGO, key, iv);
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(ciphered), decipher.final()]);
@@ -49,8 +49,7 @@ function encrypt(senderPublicKey, msg) {
   // derive aes & mac key using kdf algorithm
   const derivedKey = x963kdf(sharedSecret, KDF_DIGEST_ALGO, KDF_KEY_LEN, ephemeralPublicKey);
   const aesKey = derivedKey.slice(0, AES_KEY_LEN);
-  // const aesIV = derivedKey.slice(-AES_IV_LEN);
-  const aesIV = Buffer.from(Array.from({length: AES_IV_LEN}).map(() => 0));
+  const aesIV = derivedKey.slice(-AES_IV_LEN);
   // encrypt with aes-key using AES
   const encrypted = aesEncrypt(aesKey, aesIV, msg);
   return Buffer.concat([ephemeralPublicKey, encrypted]).toString(
@@ -66,8 +65,7 @@ function decrypt(recvPrvKeyPem, msg) {
   const sharedSecret = recvPrvKey.computeSecret(senderPublicKey);
   const derivedKey = x963kdf(sharedSecret, KDF_DIGEST_ALGO, KDF_KEY_LEN, senderPublicKey);
   const aesKey = derivedKey.slice(0, AES_KEY_LEN);
-//   const aesIV = derivedKey.slice(-AES_IV_LEN);
-  const aesIV = Buffer.from(Array.from({length: AES_IV_LEN}).map(() => 0));
+  const aesIV = derivedKey.slice(-AES_IV_LEN);
   return aesDecrypt(aesKey, aesIV, encrypted).toString();
 }
 
@@ -117,4 +115,4 @@ function verifySwiftBlueECC() {
 
 main();
 // verifyJava();
-verifySwiftBlueECC();
+// verifySwiftBlueECC();
