@@ -10,7 +10,7 @@ function x963kdf(key, algo, byteLength, sharedInfo) {
     let output = new Buffer([]);
     let outputlen = 0;
     let counter = 1;
-    console.log('x963kdf: ', key, ',', algo, ',', byteLength, ',', sharedInfo);
+    // console.log('x963kdf: ', key, ',', algo, ',', byteLength, ',', sharedInfo);
     while (byteLength > outputlen) {
         const hasher = crypto
         .createHash(algo)
@@ -24,7 +24,6 @@ function x963kdf(key, algo, byteLength, sharedInfo) {
         output = Buffer.concat([output, hashResult]);
         counter += 1;
     }
-    console.log('output: ', output.slice(0, byteLength))
     return output.slice(0, byteLength)
 }
 

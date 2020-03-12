@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const x509 = require("@fidm/x509");
 const ECKey = require("ec-key");
-const {x963kdf} = require('./x963kdf');
+const { x963kdf } = require("./x963kdf");
 
 /**
  * ## ECIES 流程
@@ -37,26 +37,16 @@ const {x963kdf} = require('./x963kdf');
  *     if nmac === mac: AES.decrypt(aes-key, encrypted)
  */
 
-/**
- * @constant kSecKeyAlgorithmECIESEncryptionStandardX963SHA256AESGCM
-    Legacy ECIES encryption or decryption, 
-    use kSecKeyAlgorithmECIESEncryptionStandardVariableIVX963SHA256AESGCM in new code.
-    Encryption is done using AES-GCM with key negotiated by kSecKeyAlgorithmECDHKeyExchangeStandardX963SHA256.
-    AES Key size is 128bit for EC keys <=256bit and 256bit for bigger EC keys. 
-    Ephemeral public key data is used as sharedInfo for KDF.
-    AES-GCM uses 16 bytes long TAG and all-zero 16 bytes long IV (initialization vector).
- */
+
 
 const CONTENT_ENCODING = "base64";
 const EC_ALGO = "P-256";
-const KDF_ALGO = 'x963kdf';
-const KDF_DIGEST_ALGO = 'sha256';
-const HMAC_ALGO = 'sha256';
+const KDF_ALGO = "x963kdf";
+const KDF_DIGEST_ALGO = "sha256";
+const HMAC_ALGO = "sha256";
 const HMAC_DIGEST_BYTE_LEN = 32;
-// const PBKDF2_IV_BYTE_LEN = 16;
-const PBKDF2_IV_BYTE_LEN = 0;
+const PBKDF2_IV_BYTE_LEN = 16;
 const HMAC_IV_BYTE_LENGTH = 16;
-// const AES_IV_LEN = 0;
 const AES_IV_LEN = 16;
 const AES_GCM_TAG_LEN = 16;
 const UNCOMPRESSED_PUBLIC_KEY_BYTE_LEN = 65;
@@ -64,35 +54,43 @@ const UNCOMPRESSED_PUBLIC_KEY_BYTE_LEN = 65;
 function decideAESGCMAlgo() {
   // if (pubKey.length * 8 > 256) return "aes-128-gcm";
   // return "aes-128-gcm";
-  return 'aes-128-gcm';
+  return "aes-128-gcm";
 }
 
-function decideKDFKeyLen() {
+function decideKDFKeyLen(hmacIvLen = 0) {
   // if (pubKey.length * 8 > 256) return (128 / 8) + HMAC_IV_BYTE_LENGTH;
   // return (128 / 8) + HMAC_IV_BYTE_LENGTH;
-  return 16;
+  return 16 + hmacIvLen;
 }
 
-function kdf() {
-  if (KDF_ALGO === 'x963kdf') {
-
-  } else {
-    return x963kdf(sharedSecret, KDF_DIGEST_ALGO, decideKDFKeyLen(), "");
+function kdf(
+  algo,
+  secret,
+  keyLen,
+  {
+    digestAlgo = KDF_DIGEST_ALGO,
+    sharedInfo = "",
+    iv = new Buffer([]),
+    iterCount = 1024
   }
+) {
+  if (algo === "x963kdf")
+    return x963kdf(secret, digestAlgo, keyLen, sharedInfo);
+  return crypto.pbkdf2Sync(secret, iv, iterCount, keyLen, digestAlgo);
 }
 
-function aesEncrypt(key, plainText, aesAlgo) {
-  // const iv = crypto.randomBytes(AES_IV_LEN);
-  const iv = Buffer.from(Array.from({length: AES_IV_LEN}).map(() => 0));
+function aesEncrypt(key, plainText, aesAlgo, iv) {
+  // const iv = Buffer.from(Array.from({ length: AES_IV_LEN }).map(() => 0));
+  console.debug(iv);
   const cipher = crypto.createCipheriv(aesAlgo, key, iv);
   const encrypted = Buffer.concat([cipher.update(plainText), cipher.final()]);
   const tag = cipher.getAuthTag();
   return Buffer.concat([encrypted, tag]);
 }
 
-function aesDecrypt(key, cipherText, aesAlgo) {
+function aesDecrypt(key, cipherText, aesAlgo, iv) {
   // const iv = cipherText.slice(0, AES_IV_LEN);
-  const iv = Buffer.from(Array.from({length: AES_IV_LEN}).map(() => 0));
+  // const iv = Buffer.from(Array.from({ length: AES_IV_LEN }).map(() => 0));
   const ciphered = cipherText.slice(0, -AES_GCM_TAG_LEN);
   const tag = cipherText.slice(-AES_GCM_TAG_LEN);
   const decipher = crypto.createDecipheriv(aesAlgo, key, iv);
@@ -100,72 +98,103 @@ function aesDecrypt(key, cipherText, aesAlgo) {
   return Buffer.concat([decipher.update(ciphered), decipher.final()]);
 }
 
-function encrypt(senderPublicKey, msg) {
-  // generate ephemeral key pair
+function encrypt(
+  senderPublicKey,
+  msg,
+  { kdfAlgo = "x963kdf", hmac = false, hmacIvLen = HMAC_IV_BYTE_LENGTH }
+) {
+  // generate ephemeral key pair and sharedSecret
   const ephemeralKey = ECKey.createECKey(EC_ALGO);
-
-  // generate shared secret
   const sharedSecret = ephemeralKey.computeSecret(senderPublicKey);
-
   // derive aes & mac key using kdf algorithm
-  // const pbkdfIV = crypto.randomBytes(PBKDF2_IV_BYTE_LEN);
-  // const fullKey = crypto.pbkdf2Sync(
-  //   sharedSecret,
-  //   pbkdfIV,
-  //   PBKDF2_ITER_COUNT,
-  //   decidePBKDF2KeyLen(senderPublicKey),
-  //   PBKDF2_DIGEST_ALGO
-  // );
-
-  const derivedKey = x963kdf(sharedSecret, KDF_DIGEST_ALGO, decideKDFKeyLen(senderPublicKey), "");
-  const aesKey = derivedKey.slice(0, -HMAC_IV_BYTE_LENGTH);
-  // const macKey = fullKey.slice(-HMAC_IV_BYTE_LENGTH);
-  // encrypt with aes-key using AES
-  const encrypted = aesEncrypt(aesKey, msg, decideAESGCMAlgo(senderPublicKey));
-  // calculate mac value
-  // const mac = crypto.createHmac(HMAC_ALGO, macKey).update(pbkdfIV).update(encrypted).digest();
-  // const mac = crypto.createHmac(HMAC_ALGO, macKey).update(pbkdfIV).update(encrypted).digest();
-
-  // const mac = crypto.createHmac(HMAC_ALGO, macKey).update(encrypted).digest();
-
-  // return Buffer.concat([pbkdfIV, ephemeralKey.publicCodePoint, encrypted, mac]).toString(
-  //   CONTENT_ENCODING
-  // );
-  return Buffer.concat([ephemeralKey.publicCodePoint, encrypted]).toString(
-    CONTENT_ENCODING
-  );
+  if (hmac) {
+    const pbkdfIV = crypto.randomBytes(PBKDF2_IV_BYTE_LEN);
+    const derivedKey = kdf(
+      KDF_ALGO,
+      sharedSecret,
+      decideKDFKeyLen(senderPublicKey, hmacIvLen),
+      KDF_DIGEST_ALGO,
+      { iv: pbkdfIV }
+    );
+    const macKey = derivedKey.slice(-hmacIvLen);
+    const macHandler = crypto.createHmac(HMAC_ALGO, macKey);
+    const aesKey = derivedKey.slice(0, -hmacIvLen);
+    // encrypt with aes-key using AES
+    const encrypted = aesEncrypt(
+      aesKey,
+      msg,
+      decideAESGCMAlgo(senderPublicKey)
+    );
+    macHandler.update(pbkdfIV ? kdfAlgo !== "x963kdf" : new Buffer([]));
+    const mac = macHandler.update(encrypted).digest();
+    return Buffer.concat([
+      pbkdfIV ? kdfAlgo !== "x963kdf" : new Buffer([]),
+      ephemeralKey.publicCodePoint,
+      encrypted,
+      mac
+    ]).toString(CONTENT_ENCODING);
+  } else {
+    const derivedKey = kdf(
+      KDF_ALGO,
+      sharedSecret,
+      decideKDFKeyLen(senderPublicKey, hmacIvLen),
+      KDF_DIGEST_ALGO
+    );
+    const aesKey = derivedKey.slice(0, -hmacIvLen);
+    // encrypt with aes-key using AES
+    const encrypted = aesEncrypt(
+      aesKey,
+      msg,
+      decideAESGCMAlgo(senderPublicKey)
+    );
+    return Buffer.concat([ephemeralKey.publicCodePoint, encrypted]).toString(
+      CONTENT_ENCODING
+    );
+  }
 }
 
-function decrypt(recvPrvKeyPem, msg) {
+function decrypt(
+  recvPrvKeyPem,
+  msg,
+  { kdfAlgo = "x963kdf", hmac = false, hmacIvLen = HMAC_IV_BYTE_LENGTH }
+) {
   const decodedMsg = Buffer.from(msg, CONTENT_ENCODING);
   const recvPrvKey = new ECKey(recvPrvKeyPem, "pem");
-  const pbkdfIV = decodedMsg.slice(0, PBKDF2_IV_BYTE_LEN);
-  const senderPublicKey = decodedMsg.slice(PBKDF2_IV_BYTE_LEN, PBKDF2_IV_BYTE_LEN + UNCOMPRESSED_PUBLIC_KEY_BYTE_LEN);
-  // const encrypted = decodedMsg.slice(PBKDF2_IV_BYTE_LEN + UNCOMPRESSED_PUBLIC_KEY_BYTE_LEN, -HMAC_DIGEST_BYTE_LEN);
-
-  const encrypted = decodedMsg.slice(PBKDF2_IV_BYTE_LEN + UNCOMPRESSED_PUBLIC_KEY_BYTE_LEN);
-
-  // const mac = decodedMsg.slice(-HMAC_DIGEST_BYTE_LEN);
-  
+  const isPBKDF = kdfAlgo === "x963kdf";
+  const pbkdfIVLen = isPBKDF ? PBKDF2_IV_BYTE_LEN : 0;
+  const pbkdfIV = decodedMsg.slice(pbkdfIVLen, PBKDF2_IV_BYTE_LEN);
+  const senderPublicKey = decodedMsg.slice(
+    pbkdfIVLen,
+    pbkdfIVLen + UNCOMPRESSED_PUBLIC_KEY_BYTE_LEN
+  );
+  const macLen = hmac ? HMAC_DIGEST_BYTE_LEN : 0;
+  const encrypted = decodedMsg.slice(
+    pbkdfIVLen + UNCOMPRESSED_PUBLIC_KEY_BYTE_LEN,
+    -macLen
+  );
+  const encrypted = decodedMsg.slice(
+    pbkdfIVLen + UNCOMPRESSED_PUBLIC_KEY_BYTE_LEN
+  );
+  const mac = decodedMsg.slice(-HMAC_DIGEST_BYTE_LEN);
   const sharedSecret = recvPrvKey.computeSecret(senderPublicKey);
-
-  // derive aes & mac key using kdf algorithm
-  // const fullKey = crypto.pbkdf2Sync(
-  //   sharedSecret,
-  //   pbkdfIV,
-  //   PBKDF2_ITER_COUNT,
-  //   decidePBKDF2KeyLen(senderPublicKey),
-  //   PBKDF2_DIGEST_ALGO
-  // );
-  const fullKey = x963kdf(sharedSecret, KDF_DIGEST_ALGO, decideKDFKeyLen(senderPublicKey), "");
-  const macKey = fullKey.slice(-HMAC_IV_BYTE_LENGTH);
+  const derivedKey = kdf(
+    KDF_ALGO,
+    sharedSecret,
+    decideKDFKeyLen(senderPublicKey, hmacIvLen),
+    KDF_DIGEST_ALGO,
+    { iv: pbkdfIV }
+  );
   const aesKey = fullKey.slice(0, -HMAC_IV_BYTE_LENGTH);
-  // const currentMac = crypto.createHmac(HMAC_ALGO, macKey).update(pbkdfIV).update(encrypted).digest();
-
-  // const currentMac = crypto.createHmac(HMAC_ALGO, macKey).update(encrypted).digest();
-  // if (currentMac.toString() !== mac.toString()) throw new Error("Can no decrypt, invalid mac");
-
-  return aesDecrypt(aesKey, encrypted, decideAESGCMAlgo(senderPublicKey)).toString();
+  if (hmac) {
+    const macKey = fullKey.slice(-HMAC_IV_BYTE_LENGTH);
+    const currentMac = crypto.createHmac(HMAC_ALGO, macKey).update(pbkdfIV).update(encrypted).digest();
+    if (currentMac.toString() !== mac.toString()) throw new Error("Can no decrypt, invalid mac");
+  }
+  return aesDecrypt(
+    aesKey,
+    encrypted,
+    decideAESGCMAlgo(senderPublicKey)
+  ).toString();
 }
 
 function main() {
@@ -177,13 +206,12 @@ function main() {
   );
   const cert = x509.Certificate.fromPEM(certBuffer);
   const publicKeyBuffer = cert.publicKey.keyRaw;
-  console.debug(publicKeyBuffer.length);
   const original = "hello world";
-  console.log("Original:  " + original);
-  const encryptedB64 = encrypt(publicKeyBuffer, original);
-  console.log("\n\nEncrypted: " + encryptedB64);
-  const decrypted = decrypt(privateKeyBuffer, encryptedB64);
-  console.log("\n\nDecrypted: " + decrypted);
+  console.info("Original:  " + original);
+  const encryptedB64 = encrypt(publicKeyBuffer, original, {});
+  console.info("\n\nEncrypted: " + encryptedB64);
+  const decrypted = decrypt(privateKeyBuffer, encryptedB64, {});
+  console.info("\n\nDecrypted: " + decrypted);
 }
 
 function verifyJava() {
