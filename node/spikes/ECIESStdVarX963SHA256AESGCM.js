@@ -19,7 +19,7 @@ const CONTENT_ENCODING = "base64";
 const EC_ALGO = "P-256";
 const KDF_DIGEST_ALGO = "sha256";
 const UNCOMPRESSED_PUBLIC_KEY_BYTE_LEN = 65;
-const AES_KEY_BIT_LEN = 256;
+const AES_KEY_BIT_LEN = 128;
 const AES_ALGO = `aes-${AES_KEY_BIT_LEN}-gcm`;
 const AES_KEY_LEN = AES_KEY_BIT_LEN / 8; // 32
 const AES_IV_LEN = 16;
@@ -46,11 +46,15 @@ function encrypt(senderPublicKey, msg) {
   // generate ephemeral key pair and sharedSecret
   const ephemeralKey = ECKey.createECKey(EC_ALGO);
   const ephemeralPublicKey = ephemeralKey.publicCodePoint;
+  console.log('\n\t\tencrypt sender public key: ', senderPublicKey.toString('base64'));
+  console.log('\n\t\tencrypt ephemeral public key: ', ephemeralPublicKey.toString('base64'));
   const sharedSecret = ephemeralKey.computeSecret(senderPublicKey);
   // derive aes & mac key using kdf algorithm
   const derivedKey = x963kdf(sharedSecret, KDF_DIGEST_ALGO, KDF_KEY_LEN, ephemeralPublicKey);
   const aesKey = derivedKey.slice(0, AES_KEY_LEN);
   const aesIV = derivedKey.slice(-AES_IV_LEN);
+  console.debug('\n\t\taesKey: ', aesKey.toString('base64'));
+  console.debug('\n\t\taesIV: ', aesIV.toString('base64'));
   // encrypt with aes-key using AES
   const encrypted = aesEncrypt(aesKey, aesIV, msg);
   return Buffer.concat([ephemeralPublicKey, encrypted]).toString(
@@ -61,12 +65,19 @@ function encrypt(senderPublicKey, msg) {
 function decrypt(recvPrvKeyPem, msg) {
   const decodedMsg = Buffer.from(msg, CONTENT_ENCODING);
   const recvPrvKey = new ECKey(recvPrvKeyPem, "pem");
-  const senderPublicKey = decodedMsg.slice(0, UNCOMPRESSED_PUBLIC_KEY_BYTE_LEN);
-  const encrypted = decodedMsg.slice(UNCOMPRESSED_PUBLIC_KEY_BYTE_LEN);
-  const sharedSecret = recvPrvKey.computeSecret(senderPublicKey);
-  const derivedKey = x963kdf(sharedSecret, KDF_DIGEST_ALGO, KDF_KEY_LEN, senderPublicKey);
+  const ephemeralPublicKey = decodedMsg.slice(0, UNCOMPRESSED_PUBLIC_KEY_BYTE_LEN);
+
+  console.debug('\n\t\tdecrypt ephemeral public key: ', ephemeralPublicKey.toString('hex'));
+  console.debug('\n\t\tdecrypt ephemeral public key: ', ephemeralPublicKey.toString('base64'));
+
+  const sharedSecret = recvPrvKey.computeSecret(ephemeralPublicKey);
+  const derivedKey = x963kdf(sharedSecret, KDF_DIGEST_ALGO, KDF_KEY_LEN, ephemeralPublicKey);
   const aesKey = derivedKey.slice(0, AES_KEY_LEN);
   const aesIV = derivedKey.slice(-AES_IV_LEN);
+  const encrypted = decodedMsg.slice(UNCOMPRESSED_PUBLIC_KEY_BYTE_LEN);
+  console.debug('\n\t\taesKey: ', aesKey.toString('base64'));
+  console.debug('\n\t\taesIV: ', aesIV.toString('base64'));
+  console.debug('\n\t\tMessage: ', encrypted);
   return aesDecrypt(aesKey, aesIV, encrypted).toString();
 }
 
@@ -80,14 +91,15 @@ function main() {
   const cert = x509.Certificate.fromPEM(certBuffer);
   const publicKeyBuffer = cert.publicKey.keyRaw;
   const original = "hello world";
-  console.info("Original:  " + original);
+  console.info("ECIES Encryption")
+  console.info("\n\tOriginal:  " + original);
   const encryptedB64 = encrypt(publicKeyBuffer, original, {});
-  console.info("\n\nEncrypted: " + encryptedB64);
+  console.info("\n\tEncrypted: " + encryptedB64);
+  console.info("\n\nECIES Encryption")
   const decrypted = decrypt(privateKeyBuffer, encryptedB64, {});
-  console.info("\n\nDecrypted: " + decrypted);
+  console.info("\n\tDecrypted: " + decrypted);
 }
 
-// BBJPPsM3Wc6qFjsQwBAGFDEQcLfYubO2cCpUEWm3/wRmR7tLhxZn5Okwgr8h2sSbkp0D8Amj1UccOrRlQANQ+wW+73G4bfF5Ap16Dz5u1mYk+wS4uXNMNudIeqE=
 
 function verifyJava() {
   const privateKeyBuffer = fs.readFileSync(
@@ -103,8 +115,7 @@ function verifyJava() {
 
 function verifySwiftBlueECC() {
   const encryptedB64 =
-    "BL9U1upIvSJq5N3meR1tootTuIg5jimasAs4PVVPyJFYLomTkm1peq4zDfvaaWVJD2MQNF/DMzf6m/kUmgqFRtmRbd+ifn00kpQfRZQ7B3yQZjq2q7Z95F9t7ZY=";
-    // "BOSkPQjG7QxT9+nnYzK/8asCFb7gwSyn+oFJCosMFZyZwRuVMhhu3akCmeJJGSyPoGysPBN6kA6GqcqbT2spjNfp4sv7xx60mm9s/ynfLmk3xdWhdqsGjW0PkVs=";
+  "BL9U1upIvSJq5N3meR1tootTuIg5jimasAs4PVVPyJFYLomTkm1peq4zDfvaaWVJD2MQNF/DMzf6m/kUmgqFRtmRbd+ifn00kpQfRZQ7B3yQZjq2q7Z95F9t7ZY=";
   const privateKeyBuffer = fs.readFileSync(
     path.join(__dirname, "..", "..", "materials", "key.pem")
   );
@@ -114,6 +125,18 @@ function verifySwiftBlueECC() {
   console.log("Original:  " + "hello world ~~~~~~~~~~~~~~~~~~~~~~");
 }
 
-main();
-// verifyJava();
-// verifySwiftBlueECC();
+function verifyJavascript(encrypted) {
+  const encryptedB64 = encrypted;
+  const privateKeyBuffer = fs.readFileSync(
+    path.join(__dirname, "..", "..", "materials", "key.pem")
+  );
+  console.log("Encrypted: " + encryptedB64);
+  const decrypted = decrypt(privateKeyBuffer, encryptedB64);
+  console.log("Decrypted: " + decrypted);
+  console.log("Original:  " + "hello world");
+}
+
+// main();
+verifyJavascript(
+  "BPUIgat55VKDORTxM0dgoMHF2As+d+DgQMkQCYLolUkOptlEmuWgyThZMpKBSlt9TDdSyGZBauHtlexd9T+p6IRip435lZzqcb1hkKcNTeKnjS0sCcMzmJFORxg="
+);

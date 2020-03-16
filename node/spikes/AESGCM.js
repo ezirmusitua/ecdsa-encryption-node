@@ -1,27 +1,29 @@
 const crypto = require("crypto");
 
+const ENCODING = 'hex';
+
 function main() {
   const message = "This is the secret i want to encrypt";
-  const key = crypto.randomBytes(48);
-  const aesKey = key.slice(0, 32);
-  const aesIV = key.slice(32);
+  const key = crypto.randomBytes(32);
+  const aesKey = key.slice(0, 16);
+  const aesIV = key.slice(16);
   console.log(aesIV, aesIV.length);
-  const cipher = crypto.createCipheriv("aes-256-gcm", aesKey, aesIV);
+  const cipher = crypto.createCipheriv("aes-128-gcm", aesKey, aesIV);
   const encrypted = Buffer.concat([cipher.update(message), cipher.final()]);
   const authTag = cipher.getAuthTag();
   console.log(
     "\n\tMessage: ",
     message,
     "\n\tAES Key: ",
-    aesKey.toString("base64"),
-    "\n\tAES ALGO: ", "aes-256-gcm",
+    aesKey.toString(ENCODING),
+    "\n\tAES ALGO: ", "aes-128-gcm",
     "\n\tAES IV: ",
-    aesIV.toString("base64"),
+    aesIV.toString(ENCODING),
     "\n\tEncrypted: ",
-    encrypted.toString("base64"),
+    encrypted.toString(ENCODING),
     "\n\tAuth Tag: ",
-    authTag.toString("base64"),
-    "\n\tFull: ", Buffer.concat([encrypted, authTag]).toString('base64'),
+    authTag.toString(ENCODING),
+    "\n\tFull: ", Buffer.concat([encrypted, authTag]).toString(ENCODING),
     "\n"
   );
   return { aesKey, aesIV, encrypted, authTag };
