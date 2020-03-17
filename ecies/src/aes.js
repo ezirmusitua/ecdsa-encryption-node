@@ -14,7 +14,7 @@ class GCM {
   }
 
   encrypt(key, iv, plaintext) {
-    if (this._completed) return;
+    if (this._completed) return this;
     const cipher = crypto.createCipheriv(this.algo, key, iv);
     this.plaintext = Buffer.from(plaintext);
     this.ciphertext = Buffer.concat([
@@ -26,7 +26,7 @@ class GCM {
   }
 
   decrypt(key, iv, ciphertext) {
-    if (this._completed) return;
+    if (this._completed) return this;
     this.ciphertext = Buffer(ciphertext);
     const ciphered = this.ciphertext.slice(0, -this.tagBlen);
     this.tag = this.ciphertext.slice(-this.tagBlen);

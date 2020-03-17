@@ -1,5 +1,6 @@
 .idea
 .vscode
-/lib/node_modules
+/ecies/node_modules
+/example/node_modules
 
 
