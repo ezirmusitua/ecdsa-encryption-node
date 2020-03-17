@@ -1,0 +1,13 @@
+{
+  "name": "ecies",
+  "version": "0.1.0",
+  "main": "index.js",
+  "author": "jferroal@gmail.com",
+  "license": "ISC",
+  "devDependencies": {
+  },
+  "dependencies": {
+    "@fidm/x509": "^1.2.1",
+    "ec-key": "^0.0.4"
+  }
+}
