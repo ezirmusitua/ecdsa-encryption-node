@@ -43,7 +43,7 @@ function testDec() {
   const ecies = kSecKeyAlgorithmECIESEncryptionCofactorX963SHA256AESGCM(
     "prime256v1"
   );
-  const ciphertext = "BEkTe8bM0/ybCIhVdVZZ5Gvo2BjhWPzW+oINjDZ2pbVex33Sf/r8Mz8qnhglGL0hKrIhbycjfXarNXGHwAS5UygHiipQC+68Jt76OkG1/opv+Z/2H0Jl3HTDwc6xyHZizjGZs/VJUZ6crzBPbX+yLlloG68u/YI="
+  const ciphertext = "BDP6ONnhoao6Q8A1beSoqXgPU1XTjsv38a9JSbFOoVOhcO6dTxk/PJpm1DelcDV1+wU9AXp4xeSY+S6Dn/9dq/07fWJjiH53KIskrvZJ0+8KmoKsZxNzfpTgW5M2p1OG/Jv6qU2SKejNPwMazvJTN6VNiHW7Yz8="
   console.log("\tDec Input : ", ciphertext);const decResult = ecies.decrypt(prvKey, ciphertext);
   console.log("\tDec Output: ", decResult);
 }
