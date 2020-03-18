@@ -18,7 +18,6 @@ class InputHandler {
   }
   getEphemeralPublicKey(i) {
     const bytes = this.formatInput(i, "base64").slice(0, this.pubBytesLen);
-    console.log(bytes)
     return this.formatInput(i, "base64").slice(0, this.pubBytesLen);
   }
   getEncrypted(i) {
@@ -28,13 +27,16 @@ class InputHandler {
 
 class OutputHandler {
   constructor() {}
-  concat(eciesInstance) {
-    if (eciesInstance.aesHandler.ciphertext) return eciesInstance.aesHandler.plaintext.toString();
+
+  buildEnc(eciesInstance) {
     const publicCodePoint = eciesInstance.ecdh.publicCodePoint;
-    console.log(publicCodePoint);
     const encrypted = eciesInstance.aesHandler.ciphertext;
     const tag = eciesInstance.aesHandler.tag;
     return Buffer.concat([publicCodePoint, encrypted, tag]).toString("base64");
+  }
+
+  buildDec(eciesInstance) {
+    return eciesInstance.aesHandler.plaintext.toString()
   }
 }
 
@@ -71,7 +73,7 @@ function kSecKeyAlgorithmECIESEncryptionCofactorX963SHA256AESGCM(ecAlgo) {
         .computeSecret(pubKey)
         .deriveKey(ecies.ecdh.publicCodePoint)
         .encrypt()
-        .output();
+        .outputEnc();
     },
     decrypt(prvKey, ciphertext) {
       const ecies = createECIESInstance(formattedEcAlgo, aesKeyBytesLen, pubBytesLen);
@@ -80,7 +82,7 @@ function kSecKeyAlgorithmECIESEncryptionCofactorX963SHA256AESGCM(ecAlgo) {
         .computeSecret(null, prvKey)
         .deriveKey(ecies.inputHandler.getEphemeralPublicKey(ciphertext))
         .decrypt()
-        .output();
+        .outputDec();
     }
   };
 }

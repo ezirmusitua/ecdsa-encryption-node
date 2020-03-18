@@ -26,36 +26,34 @@ h8lWvcGx2ZCcNTk3n/VtP1xkLi2hRANCAASu9GLuUwORC0Wqjdrjd5rgNiBuVa9E
 -----END PRIVATE KEY-----`;
 
 function testEnc() {
+  console.log("Test ECIES Encryption: ")
   const pubKey = readPublicKeyFromCertPem(TestCertPem);
-  const prvKey = readPrivateKeyFromKeyPem(TestKeyPem);
   const ecies = kSecKeyAlgorithmECIESEncryptionCofactorX963SHA256AESGCM(
     "prime256v1"
   );
   const message = "おはよう世界, Good Morning World";
-  console.log("Message: ", message);
+  console.log("\tEnc Input : ")
   const encResult = ecies.encrypt(pubKey, message);
-  console.log("Enc Result: ", encResult);
+  console.log("\tEnc Output: ", encResult);
 }
 
 function testDec() {
+  console.log("\n\nTest ECIES Decryption")
   const prvKey = readPrivateKeyFromKeyPem(TestKeyPem);
   const ecies = kSecKeyAlgorithmECIESEncryptionCofactorX963SHA256AESGCM(
     "prime256v1"
   );
-  const ciphertext = 
-		"BN8Fx5389GF29XYgBS/hXZ4WfNPEJRH0J3r7+meII1l5jYdjhsBF7bS+ZhKLzqKUIWUidFExdd4pBbS2epx4zViTfrU81hAdIMtF49nuK5xve9xgfTOhKsZWIrWHwxEGo9zdMsgO7RrFGMW6QoIMb0WS5IHNjwIaxRjFukKCDG9FkuSBzY8C";
-		// "BNH4/UtvkP3dFO4jx/Mx/vhAB2GMU2UynnsC8Myv6Aj532/iixDUBBOek1rxCq3a/6AijvQuVWjG91d3Cy8Oy1/azaRdYxOLrF+53wHbNgkX3vna8Purst6TwC4TVjwAxPhMBSpZM5EUf9tLcK7kfi8LHzXaULU=";
-  console.log("Enc Result: ", ciphertext);
-  const decResult = ecies.decrypt(prvKey, ciphertext);
-  console.log("Dec Result: ", decResult);
+  const ciphertext = "BEkTe8bM0/ybCIhVdVZZ5Gvo2BjhWPzW+oINjDZ2pbVex33Sf/r8Mz8qnhglGL0hKrIhbycjfXarNXGHwAS5UygHiipQC+68Jt76OkG1/opv+Z/2H0Jl3HTDwc6xyHZizjGZs/VJUZ6crzBPbX+yLlloG68u/YI="
+  console.log("\tDec Input : ", ciphertext);const decResult = ecies.decrypt(prvKey, ciphertext);
+  console.log("\tDec Output: ", decResult);
 }
 
-console.log("\n\n");
+console.log(" = ".repeat(10) + "\n\n");
 
 testEnc();
 
-console.log("\n\n");
+console.log("\n\n" + ".-.".repeat(10));
 
 testDec();
 
-console.log("\n\n");
+console.log("\n\n" + " = ".repeat(10));

@@ -104,10 +104,10 @@ class ECIES {
     if (!this.aesHandler) {
       throw new Error("Set AES Encryption Handler Before Encrypt");
     }
-    const symKey = this._derivedKey.slice(0, this._aesKeyBLen);
-    const symIv = this._derivedKey.slice(-this._aesIvBLen);
+    const aesKey = this._derivedKey.slice(0, this._aesKeyBLen);
+    const aesIv = this._derivedKey.slice(-this._aesIvBLen);
     const message = this.inputHandler.getMessage(this._plaintext);
-    this.aesHandler.encrypt(symKey, symIv, message);
+    this.aesHandler.encrypt(aesKey, aesIv, message);
     return this;
   }
 
@@ -122,8 +122,12 @@ class ECIES {
     return this;
   }
 
-  output() {
-    return this.outputHandler.concat(this);
+  outputEnc() {
+    return this.outputHandler.buildEnc(this);
+  }
+
+  outputDec() {
+    return this.outputHandler.buildDec(this);
   }
 }
 
