@@ -2,7 +2,7 @@ const {
   readPublicKeyFromCertPem,
   readPrivateKeyFromKeyPem,
   kSecKeyAlgorithmECIESEncryptionCofactorX963SHA256AESGCM
-} = require("./lib");
+} = require("ecies");
 
 const TestCertPem = `-----BEGIN CERTIFICATE-----
 MIICGjCCAcCgAwIBAgIQdTf6GFMTws3FQ1u6RQmy4TAKBggqhkjOPQQDAjBpMQsw
@@ -42,7 +42,9 @@ function testDec() {
   const ecies = kSecKeyAlgorithmECIESEncryptionCofactorX963SHA256AESGCM(
     "prime256v1"
   );
-  const ciphertext = "BNH4/UtvkP3dFO4jx/Mx/vhAB2GMU2UynnsC8Myv6Aj532/iixDUBBOek1rxCq3a/6AijvQuVWjG91d3Cy8Oy1/azaRdYxOLrF+53wHbNgkX3vna8Purst6TwC4TVjwAxPhMBSpZM5EUf9tLcK7kfi8LHzXaULU=";
+  const ciphertext = 
+		"BN8Fx5389GF29XYgBS/hXZ4WfNPEJRH0J3r7+meII1l5jYdjhsBF7bS+ZhKLzqKUIWUidFExdd4pBbS2epx4zViTfrU81hAdIMtF49nuK5xve9xgfTOhKsZWIrWHwxEGo9zdMsgO7RrFGMW6QoIMb0WS5IHNjwIaxRjFukKCDG9FkuSBzY8C";
+		// "BNH4/UtvkP3dFO4jx/Mx/vhAB2GMU2UynnsC8Myv6Aj532/iixDUBBOek1rxCq3a/6AijvQuVWjG91d3Cy8Oy1/azaRdYxOLrF+53wHbNgkX3vna8Purst6TwC4TVjwAxPhMBSpZM5EUf9tLcK7kfi8LHzXaULU=";
   console.log("Enc Result: ", ciphertext);
   const decResult = ecies.decrypt(prvKey, ciphertext);
   console.log("Dec Result: ", decResult);

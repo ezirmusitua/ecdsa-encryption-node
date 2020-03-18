@@ -17,6 +17,8 @@ class InputHandler {
     return this.formatInput(i);
   }
   getEphemeralPublicKey(i) {
+    const bytes = this.formatInput(i, "base64").slice(0, this.pubBytesLen);
+    console.log(bytes)
     return this.formatInput(i, "base64").slice(0, this.pubBytesLen);
   }
   getEncrypted(i) {
@@ -29,6 +31,7 @@ class OutputHandler {
   concat(eciesInstance) {
     if (eciesInstance.aesHandler.ciphertext) return eciesInstance.aesHandler.plaintext.toString();
     const publicCodePoint = eciesInstance.ecdh.publicCodePoint;
+    console.log(publicCodePoint);
     const encrypted = eciesInstance.aesHandler.ciphertext;
     const tag = eciesInstance.aesHandler.tag;
     return Buffer.concat([publicCodePoint, encrypted, tag]).toString("base64");

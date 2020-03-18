@@ -14,7 +14,7 @@ const EC_ALGOS = {
 
 class ECIES {
   constructor(ecAlgo, aesKeyBytesLen, aesIvBytesLen) {
-    this._ecAlgo = EC_ALGOS[ecAlgo];
+    this._ecAlgo = ecAlgo;
     if (!this._ecAlgo) {
       throw new Error("Invalid EC Curve Name: " + ecAlgo);
     }
